@@ -1,13 +1,8 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import JobListPage from './pages/JobListPage'
+import JobDetailsPage from './pages/JobDetailsPage'
 
-function JobListPage() {
-  return <div>Job List</div>
-}
-
-function JobDetailsPage() {
-  return <div>Job Details</div>
-}
 
 const queryClient = new QueryClient()
 
