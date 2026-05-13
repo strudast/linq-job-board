@@ -6,6 +6,9 @@ import JobCard from '../components/JobCard'
 import SearchBar from '../components/SearchBar'
 import JobFilters, { type SortOrder } from '../components/JobFilters'
 import { useDebounce } from '../hooks/useDebounce'
+import Pagination from '../components/Pagination'
+
+const PAGE_SIZE = 10
 
 function JobListPage() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -14,6 +17,7 @@ function JobListPage() {
   const urlSearch = searchParams.get('q') ?? ''
   const sort = (searchParams.get('sort') as SortOrder) ?? 'desc'
   const recruitingOnly = searchParams.get('recruiting') === 'true'
+ const page = Math.max(1, Number(searchParams.get('page')) || 1)
 
   // Local state for the search input so typing feels instant.
   // The URL only updates after the user stops typing (debounced below).
@@ -33,6 +37,20 @@ function JobListPage() {
     )
   }, [debouncedSearch, setSearchParams])
 
+ // Whenever filters change, jump back to page 1.
+  useEffect(() => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        next.delete('page')
+        return next
+      },
+      { replace: true },
+    )
+    // We intentionally exclude setSearchParams from deps to avoid resetting on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch, sort, recruitingOnly])
+
   const updateParam = (key: string, value: string | null) => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev)
@@ -43,13 +61,15 @@ function JobListPage() {
   }
 
   const { data, isLoading, isError, error, isFetching } = useQuery({
-    queryKey: ['jobs', { search: debouncedSearch, sort, recruitingOnly }],
+    queryKey: ['jobs', { search: debouncedSearch, sort, recruitingOnly, page }],
     queryFn: () =>
       getJobs({
         search: debouncedSearch || undefined,
         sortBy: 'publishedAt',
         order: sort,
         isActiveRecruiting: recruitingOnly ? true : undefined,
+        page,
+        limit: PAGE_SIZE,
       }),
   })
 
@@ -59,7 +79,7 @@ function JobListPage() {
         <div className="mx-auto max-w-3xl">
           <h1 className="text-3xl font-bold text-slate-900">Jobs</h1>
           <p className="mt-1 text-sm text-slate-500">
-            {data ? `${data.length} position${data.length === 1 ? '' : 's'} found` : 'Loading…'}
+        {data ? `Showing ${data.length} position${data.length === 1 ? '' : 's'}` : 'Loading…'}
           </p>
         </div>
       </header>
@@ -85,6 +105,7 @@ function JobListPage() {
         )}
 
         {data && data.length > 0 && (
+          <>
           <ul className={`space-y-3 transition-opacity ${isFetching ? 'opacity-60' : ''}`}>
             {data.map((job) => (
               <li key={job.id}>
@@ -92,6 +113,12 @@ function JobListPage() {
               </li>
             ))}
           </ul>
+          <Pagination
+              page={page}
+              hasNextPage={data.length === PAGE_SIZE}
+              onPageChange={(next) => updateParam('page', String(next))}
+            />
+            </>
         )}
       </main>
     </div>
